@@ -1,6 +1,9 @@
-import type { Database } from '@azure/cosmos';
-import type { CurrentWeekDocument, PastWeeksDocument } from '@dreamspace/shared';
-import { BaseRepository, type ContainerConfig } from './BaseRepository';
+import type { Database } from "@azure/cosmos";
+import type {
+  CurrentWeekDocument,
+  PastWeeksDocument,
+} from "@dreamspace/shared";
+import { BaseRepository, type ContainerConfig } from "./BaseRepository";
 
 /**
  * Repository for week-related operations.
@@ -17,10 +20,12 @@ export class WeeksRepository extends BaseRepository {
    * @returns Current week document or null if not found
    */
   async getCurrentWeek(userId: string): Promise<CurrentWeekDocument | null> {
-    const container = this.getContainer('currentWeek');
-    
+    const container = this.getContainer("currentWeek");
+
     try {
-      const { resource } = await container.item(userId, userId).read<CurrentWeekDocument>();
+      const { resource } = await container
+        .item(userId, userId)
+        .read<CurrentWeekDocument>();
       return resource ?? null;
     } catch (error) {
       return this.handleReadError<CurrentWeekDocument>(error);
@@ -35,10 +40,10 @@ export class WeeksRepository extends BaseRepository {
    */
   async upsertCurrentWeek(
     userId: string,
-    weekData: Partial<CurrentWeekDocument>
+    weekData: Partial<CurrentWeekDocument>,
   ): Promise<CurrentWeekDocument> {
-    const container = this.getContainer('currentWeek');
-    
+    const container = this.getContainer("currentWeek");
+
     const document: CurrentWeekDocument = {
       id: userId,
       userId,
@@ -48,11 +53,11 @@ export class WeeksRepository extends BaseRepository {
     this.addTimestamps(document, !weekData.createdAt);
 
     const { resource } = await container.items.upsert(document);
-    
+
     if (!resource) {
-      throw new Error('Failed to upsert current week');
+      throw new Error("Failed to upsert current week");
     }
-    
+
     return this.castResource<CurrentWeekDocument>(resource);
   }
 
@@ -62,10 +67,12 @@ export class WeeksRepository extends BaseRepository {
    * @returns Past weeks document or null if not found
    */
   async getPastWeeks(userId: string): Promise<PastWeeksDocument | null> {
-    const container = this.getContainer('pastWeeks');
-    
+    const container = this.getContainer("pastWeeks");
+
     try {
-      const { resource } = await container.item(userId, userId).read<PastWeeksDocument>();
+      const { resource } = await container
+        .item(userId, userId)
+        .read<PastWeeksDocument>();
       return resource ?? null;
     } catch (error) {
       return this.handleReadError<PastWeeksDocument>(error);
@@ -80,10 +87,10 @@ export class WeeksRepository extends BaseRepository {
    */
   async upsertPastWeeks(
     userId: string,
-    weeksData: Partial<PastWeeksDocument>
+    weeksData: Partial<PastWeeksDocument>,
   ): Promise<PastWeeksDocument> {
-    const container = this.getContainer('pastWeeks');
-    
+    const container = this.getContainer("pastWeeks");
+
     const document: PastWeeksDocument = {
       id: userId,
       userId,
@@ -93,11 +100,11 @@ export class WeeksRepository extends BaseRepository {
     this.addTimestamps(document, !weeksData.createdAt);
 
     const { resource } = await container.items.upsert(document);
-    
+
     if (!resource) {
-      throw new Error('Failed to upsert past weeks');
+      throw new Error("Failed to upsert past weeks");
     }
-    
+
     return this.castResource<PastWeeksDocument>(resource);
   }
 }
