@@ -11,9 +11,9 @@
     "clean": "rm -rf .next"
   },
   "dependencies": {
+    "@azure/msal-node": "^2.6.0",
     "@dreamspace/database": "workspace:*",
     "@dreamspace/shared": "workspace:*",
-    "@azure/msal-node": "^2.6.0",
     "@microsoft/applicationinsights-web": "^3.0.5",
     "canvas-confetti": "^1.9.4",
     "lucide-react": "^0.451.0",
@@ -26,6 +26,8 @@
     "zod-form-data": "^2.0.2"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.3",
+    "@eslint/js": "^9.39.2",
     "@tailwindcss/line-clamp": "^0.4.4",
     "@types/canvas-confetti": "^1.6.4",
     "@types/node": "^20.10.0",

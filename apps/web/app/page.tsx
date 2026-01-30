@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 
 /**
  * Home page - redirects to dashboard if authenticated, otherwise to sign in
@@ -18,12 +19,12 @@ export default async function Home() {
         <p className="text-xl text-white/90 mb-8">
           Transform your dreams into reality with goal tracking and team coaching
         </p>
-        <a
+        <Link
           href="/api/auth/signin"
           className="inline-block px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg shadow-lg hover:bg-gray-100 transition-colors"
         >
           Sign In with Microsoft
-        </a>
+        </Link>
       </div>
     </div>
   );

@@ -18,7 +18,7 @@ export default async function DashboardPage() {
     return <div>Error loading profile: {result.errors?._errors?.join(', ') || 'Unknown error'}</div>;
   }
 
-  const { profile } = result;
+  const profile = result.data;
 
   if (!profile) {
     return <div>Profile not found</div>;

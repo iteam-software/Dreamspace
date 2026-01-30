@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@/lib/auth';
+import { withAuth, createActionSuccess, createActionError, handleActionError } from '@/lib/actions';
 import { getDatabaseClient } from '@dreamspace/database';
 
 /**
@@ -10,29 +10,23 @@ import { getDatabaseClient } from '@dreamspace/database';
  * @param userId - User ID to fetch
  * @returns User profile or error
  */
-export async function getUserProfile(userId: string) {
+export const getUserProfile = withAuth(async (user, userId: string) => {
   try {
-    const session = await auth();
-    
-    if (!session?.user?.id) {
-      return { failed: true, errors: { _errors: ['Unauthorized'] } };
-    }
-
     // Only allow users to fetch their own profile (or admins in future)
-    if (session.user.id !== userId) {
-      return { failed: true, errors: { _errors: ['Forbidden'] } };
+    if (user.id !== userId) {
+      return createActionError('Forbidden');
     }
 
     const db = getDatabaseClient();
     const profile = await db.users.getUserProfile(userId);
 
     if (!profile) {
-      return { failed: true, errors: { _errors: ['User not found'] } };
+      return createActionError('User not found');
     }
 
-    return { failed: false, profile };
+    return createActionSuccess(profile);
   } catch (error) {
     console.error('Failed to get user profile:', error);
-    return { failed: true, errors: { _errors: ['Failed to fetch user profile'] } };
+    return handleActionError(error, 'Failed to fetch user profile');
   }
-}
+});
