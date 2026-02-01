@@ -10,7 +10,18 @@
     "type-check": "turbo run type-check",
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "legacy:dev": "vite",
+    "legacy:build": "vite build",
+    "legacy:lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "legacy:test": "vitest run",
+    "legacy:test:watch": "vitest",
+    "legacy:test:ui": "vitest --ui",
+    "legacy:test:coverage": "vitest run --coverage",
+    "legacy:smoke-test": "node scripts/smokeTest.cjs http://localhost:5173",
+    "legacy:smoke-test:prod": "node scripts/smokeTest.cjs https://dreamspace.tylerstewart.co.za",
+    "legacy:preview": "vite preview",
+    "legacy:deploy": "npm run legacy:build && gh-pages -d dist"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
