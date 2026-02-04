@@ -36,12 +36,16 @@ export const saveUserData = withAuth(async (user, userData: SaveUserDataInput) =
     const existingProfile = await db.users.getUserProfile(userId);
     
     // Extract profile data without arrays (6-container architecture - no career fields)
+    // Destructure to exclude fields that don't belong in user profile:
+    // - yearVision: belongs in dreams container, not user profile  
+    // - Arrays: managed in separate containers
+    // - Cosmos metadata: internal fields not needed
     const userProfile = userData.currentUser || userData;
     const {
       dreamBook, weeklyGoals, scoringHistory, connects,
-      yearVision, // This belongs in dreams container - intentionally excluded from user profile
-      isAuthenticated, // Remove this from profile
-      _rid, _self, _etag, _attachments, _ts, // Remove Cosmos metadata
+      yearVision, // Excluded - belongs in dreams container
+      isAuthenticated, // Excluded - not persisted
+      _rid, _self, _etag, _attachments, _ts, // Excluded - Cosmos metadata
       ...profileData
     } = userProfile;
     

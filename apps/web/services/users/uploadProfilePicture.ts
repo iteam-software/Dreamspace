@@ -57,7 +57,17 @@ export const uploadProfilePicture = withAuth(async (user, userId: string, imageD
     // Create safe filename
     const safeUserId = userId.replace(/[^a-zA-Z0-9-_@.]/g, '_');
     
-    // Determine extension from content type
+    // Detect content type from image buffer first
+    let contentType = 'image/jpeg';
+    if (imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50) {
+      contentType = 'image/png';
+    } else if (imageBuffer[0] === 0x47 && imageBuffer[1] === 0x49) {
+      contentType = 'image/gif';
+    } else if (imageBuffer[0] === 0x52 && imageBuffer[1] === 0x49) {
+      contentType = 'image/webp';
+    }
+    
+    // Determine file extension from detected content type
     const extensionMap: Record<string, string> = { 
       'image/webp': 'webp', 
       'image/jpeg': 'jpg',
@@ -70,16 +80,6 @@ export const uploadProfilePicture = withAuth(async (user, userId: string, imageD
     
     // Get blob client
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-    
-    // Detect content type
-    let contentType = 'image/jpeg';
-    if (imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50) {
-      contentType = 'image/png';
-    } else if (imageBuffer[0] === 0x47 && imageBuffer[1] === 0x49) {
-      contentType = 'image/gif';
-    } else if (imageBuffer[0] === 0x52 && imageBuffer[1] === 0x49) {
-      contentType = 'image/webp';
-    }
     
     // Upload the image
     await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
