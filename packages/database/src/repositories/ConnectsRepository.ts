@@ -75,6 +75,31 @@ export class ConnectsRepository extends BaseRepository {
   }
 
   /**
+   * Upserts a connect (creates or updates)
+   * @param userId - User ID (partition key)
+   * @param connectData - Connect data
+   * @returns Saved connect document
+   */
+  async upsertConnect(userId: string, connectData: Partial<ConnectDocument>): Promise<ConnectDocument> {
+    const container = this.getContainer('connects');
+    
+    const document: ConnectDocument = {
+      ...connectData,
+      userId,
+    } as ConnectDocument;
+
+    this.addTimestamps(document, !connectData.createdAt);
+
+    const { resource } = await container.items.upsert(document);
+    
+    if (!resource) {
+      throw new Error('Failed to upsert connect');
+    }
+    
+    return this.castResource<ConnectDocument>(resource);
+  }
+
+  /**
    * Deletes a connect
    * @param connectId - Connect ID
    * @param userId - User ID (partition key)

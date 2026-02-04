@@ -31,37 +31,7 @@ export const getItems = withAuth(async (user, input: GetItemsInput) => {
     }
     
     const db = getDatabaseClient();
-    const container = db.getContainer('items');
-    
-    // Build query based on filters
-    let query: string;
-    let parameters: any[];
-    
-    if (type && weekId) {
-      query = 'SELECT * FROM c WHERE c.userId = @userId AND c.type = @type AND c.weekId = @weekId';
-      parameters = [
-        { name: '@userId', value: userId },
-        { name: '@type', value: type },
-        { name: '@weekId', value: weekId }
-      ];
-    } else if (type) {
-      query = 'SELECT * FROM c WHERE c.userId = @userId AND c.type = @type';
-      parameters = [
-        { name: '@userId', value: userId },
-        { name: '@type', value: type }
-      ];
-    } else if (weekId) {
-      query = 'SELECT * FROM c WHERE c.userId = @userId AND c.weekId = @weekId';
-      parameters = [
-        { name: '@userId', value: userId },
-        { name: '@weekId', value: weekId }
-      ];
-    } else {
-      query = 'SELECT * FROM c WHERE c.userId = @userId';
-      parameters = [{ name: '@userId', value: userId }];
-    }
-    
-    const { resources } = await container.items.query({ query, parameters }).fetchAll();
+    const resources = await db.items.getItems(userId, type, weekId);
     
     return createActionSuccess(resources);
   } catch (error) {

@@ -21,23 +21,15 @@ export const getAllYearsScoring = withAuth(async (user, userId: string) => {
     }
     
     const db = getDatabaseClient();
-    const container = db.getContainer('scoring');
-    
-    // Query all scoring documents for this user across all years
-    const query = {
-      query: 'SELECT * FROM c WHERE c.userId = @userId ORDER BY c.year DESC',
-      parameters: [{ name: '@userId', value: userId }]
-    };
-    
-    const { resources } = await container.items.query(query).fetchAll();
+    const documents = await db.scoring.getAllYearsScoring(userId);
     
     // Calculate all-time total
-    const allTimeTotal = resources.reduce((sum, doc: any) => sum + (doc.totalScore || 0), 0);
+    const allTimeTotal = documents.reduce((sum: number, doc: any) => sum + (doc.totalScore || 0), 0);
     
     return createActionSuccess({
-      documents: resources,
+      documents,
       allTimeTotal,
-      yearsCount: resources.length
+      yearsCount: documents.length
     });
   } catch (error) {
     console.error('Failed to get all years scoring:', error);

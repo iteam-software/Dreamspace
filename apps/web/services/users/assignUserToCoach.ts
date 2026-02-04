@@ -23,54 +23,36 @@ export const assignUserToCoach = withAdminAuth(async (user, input: AssignUserToC
     }
     
     const db = getDatabaseClient();
-    const usersContainer = db.getContainer('users');
-    const teamsContainer = db.getContainer('teams');
     
     // Verify user exists
-    const userQuery = {
-      query: 'SELECT * FROM c WHERE c.userId = @userId',
-      parameters: [{ name: '@userId', value: userId.toString() }]
-    };
+    const userDoc = await db.users.getUserProfile(userId);
     
-    const { resources: users } = await usersContainer.items.query(userQuery).fetchAll();
-    
-    if (users.length === 0) {
+    if (!userDoc) {
       throw new Error(`User not found: ${userId}`);
     }
     
     // Find the coach's team
-    const teamQuery = {
-      query: 'SELECT * FROM c WHERE c.type = @type AND c.managerId = @managerId',
-      parameters: [
-        { name: '@type', value: 'team_relationship' },
-        { name: '@managerId', value: coachId }
-      ]
-    };
+    const team = await db.teams.getTeamByManagerId(coachId);
     
-    const { resources: teams } = await teamsContainer.items.query(teamQuery).fetchAll();
-    
-    if (teams.length === 0) {
+    if (!team) {
       throw new Error(`Coach team not found: ${coachId}`);
     }
     
-    const team = teams[0];
-    
     // Check if user is already in the team
-    if (team.teamMembers?.includes(userId)) {
-      throw new Error(`User is already assigned to this coach. userId: ${userId}, coachId: ${coachId}, teamName: ${team.teamName}`);
+    if ((team as any).teamMembers?.includes(userId)) {
+      throw new Error(`User is already assigned to this coach. userId: ${userId}, coachId: ${coachId}, teamName: ${(team as any).teamName}`);
     }
     
     // Add user to team
     const updatedTeam = {
       ...team,
-      teamMembers: [...(team.teamMembers || []), userId],
+      teamMembers: [...((team as any).teamMembers || []), userId],
       lastModified: new Date().toISOString()
     };
     
-    await teamsContainer.item(team.id, team.managerId).replace(updatedTeam);
+    await db.teams.updateTeam(team.id, team.managerId, updatedTeam);
     
     // Update user's assignment info
-    const userDoc = users[0];
     const updatedUser = {
       ...userDoc,
       assignedCoachId: coachId,
@@ -79,7 +61,7 @@ export const assignUserToCoach = withAdminAuth(async (user, input: AssignUserToC
       lastModified: new Date().toISOString()
     };
     
-    await usersContainer.item(userDoc.id, userDoc.userId).replace(updatedUser);
+    await db.users.updateUserProfile(userId, updatedUser);
     
     return createActionSuccess({
       message: 'User successfully assigned to coach',

@@ -76,9 +76,10 @@ export const saveDreams = withAuth(async (user, input: SaveDreamsInput) => {
       weeklyGoalTemplates: (weeklyGoalTemplates || []).map(template => ({
         id: template.id,
         type: 'weekly_goal_template',
-        goalType: template.goalType,
         title: template.title,
         description: template.description,
+        category: template.category || template.dreamCategory || 'general',
+        goalType: template.goalType,
         dreamId: template.dreamId,
         dreamTitle: template.dreamTitle,
         dreamCategory: template.dreamCategory,

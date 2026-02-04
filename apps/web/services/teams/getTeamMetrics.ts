@@ -17,37 +17,19 @@ export const getTeamMetrics = withAuth(async (user, managerId: string) => {
     }
     
     const db = getDatabaseClient();
-    const teamsContainer = db.getContainer('teams');
-    const usersContainer = db.getContainer('users');
+    const team = await db.teams.getTeamByManagerId(managerId);
     
-    // Find team for this manager
-    const teamQuery = {
-      query: 'SELECT * FROM c WHERE c.type = @type AND c.managerId = @managerId',
-      parameters: [
-        { name: '@type', value: 'team_relationship' },
-        { name: '@managerId', value: managerId }
-      ]
-    };
-    
-    const { resources: teams } = await teamsContainer.items.query(teamQuery).fetchAll();
-    
-    if (teams.length === 0) {
+    if (!team) {
       throw new Error(`No team found for manager: ${managerId}`);
     }
     
-    const team = teams[0];
-    const memberIds = team.teamMembers || [];
+    const memberIds = (team as any).teamMembers || [];
     const allMemberIds = [managerId, ...memberIds.filter((id: string) => id !== managerId)];
     
     // Get team members' data
     const teamMembers: any[] = [];
     if (allMemberIds.length > 0) {
-      const usersQuery = {
-        query: `SELECT * FROM c WHERE c.userId IN (${allMemberIds.map((_, i) => `@userId${i}`).join(', ')})`,
-        parameters: allMemberIds.map((id: string, i: number) => ({ name: `@userId${i}`, value: id.toString() }))
-      };
-      
-      const { resources: users } = await usersContainer.items.query(usersQuery).fetchAll();
+      const users = await db.users.getUsersByIds(allMemberIds);
       
       users.forEach((userData: any) => {
         const currentUser = userData.currentUser || {};

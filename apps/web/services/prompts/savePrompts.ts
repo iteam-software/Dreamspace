@@ -16,7 +16,13 @@ export const savePrompts = withAdminAuth(async (user, prompts: any) => {
     }
     
     const db = getDatabaseClient();
-    await db.prompts.upsertPrompts(prompts);
+    
+    // Handle both single prompt and array of prompts
+    const promptsArray = Array.isArray(prompts) ? prompts : [prompts];
+    
+    for (const prompt of promptsArray) {
+      await db.prompts.upsertPrompt(prompt);
+    }
     
     return createActionSuccess({ message: 'Prompts saved successfully' });
   } catch (error) {

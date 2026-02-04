@@ -35,6 +35,26 @@ export class PromptsRepository extends BaseRepository {
   }
 
   /**
+   * Gets all prompts
+   * @returns Array of all prompt documents
+   */
+  async getPrompts(): Promise<PromptDocument[]> {
+    const container = this.getContainer('prompts');
+    
+    try {
+      const query = {
+        query: 'SELECT * FROM c ORDER BY c.promptType DESC, c.version DESC',
+      };
+      
+      const { resources } = await container.items.query<PromptDocument>(query).fetchAll();
+      return resources;
+    } catch (error) {
+      console.error('Error fetching prompts:', error);
+      return [];
+    }
+  }
+
+  /**
    * Gets prompt by ID
    * @param promptId - Prompt ID
    * @param partitionKey - Partition key

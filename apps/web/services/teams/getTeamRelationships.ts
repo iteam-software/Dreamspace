@@ -11,14 +11,7 @@ import { getDatabaseClient } from '@dreamspace/database';
 export const getTeamRelationships = withAuth(async (user) => {
   try {
     const db = getDatabaseClient();
-    const container = db.getContainer('teams');
-    
-    const query = {
-      query: 'SELECT * FROM c WHERE c.type = @type',
-      parameters: [{ name: '@type', value: 'team_relationship' }]
-    };
-    
-    const { resources: teams } = await container.items.query(query).fetchAll();
+    const teams = await db.teams.getTeamRelationships();
     
     const formattedTeams = teams.map((team: any) => ({
       id: team.id,

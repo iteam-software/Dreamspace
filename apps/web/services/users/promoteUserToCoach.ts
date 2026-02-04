@@ -28,22 +28,13 @@ export const promoteUserToCoach = withAdminAuth(async (user, input: PromoteUserT
     const teamName = providedTeamName || generateRandomTeamName();
     
     const db = getDatabaseClient();
-    const usersContainer = db.getContainer('users');
-    const teamsContainer = db.getContainer('teams');
     
     // Check if user exists
-    const userQuery = {
-      query: 'SELECT * FROM c WHERE c.userId = @userId',
-      parameters: [{ name: '@userId', value: userId.toString() }]
-    };
+    const userDoc = await db.users.getUserProfile(userId);
     
-    const { resources: users } = await usersContainer.items.query(userQuery).fetchAll();
-    
-    if (users.length === 0) {
+    if (!userDoc) {
       throw new Error(`User not found: ${userId}`);
     }
-    
-    const userDoc = users[0];
     
     // Update user role to coach
     const updatedUser = {
@@ -54,7 +45,7 @@ export const promoteUserToCoach = withAdminAuth(async (user, input: PromoteUserT
       promotedAt: new Date().toISOString()
     };
     
-    await usersContainer.item(userDoc.id, userDoc.userId).replace(updatedUser);
+    await db.users.updateUserProfile(userId, updatedUser);
     
     // Create new team relationship with stable teamId
     const teamId = generateTeamId();
@@ -72,7 +63,7 @@ export const promoteUserToCoach = withAdminAuth(async (user, input: PromoteUserT
       createdBy: 'system',
     };
     
-    await teamsContainer.items.create(teamRelationship);
+    const createdTeam = await db.teams.createTeam(teamRelationship);
     
     return createActionSuccess({
       message: 'User successfully promoted to coach',

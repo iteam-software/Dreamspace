@@ -47,9 +47,15 @@ export const archiveWeek = withAuth(async (user, input: ArchiveWeekInput) => {
     const weeks = existingPastWeeks?.weeks || [];
     
     // Add new week to the beginning (most recent first)
+    const weekNumber = weeks.length + 1; // Simple counter from newest
     weeks.unshift({
-      weekId,
-      ...weekSummary,
+      weekStartDate: weekSummary.weekStartDate,
+      weekEndDate: weekSummary.weekEndDate,
+      weekNumber,
+      year: new Date().getFullYear(),
+      goalsCompleted: weekSummary.completedGoals,
+      goalsTotal: weekSummary.totalGoals,
+      completionRate: weekSummary.totalGoals > 0 ? Math.round((weekSummary.completedGoals / weekSummary.totalGoals) * 100) : 0,
       archivedAt: new Date().toISOString()
     });
     

@@ -28,9 +28,8 @@ export const deleteItem = withAuth(async (user, input: DeleteItemInput) => {
     }
     
     const db = getDatabaseClient();
-    const container = db.getContainer('items');
     
-    await container.item(itemId, userId).delete();
+    await db.items.deleteItem(itemId, userId);
     
     return createActionSuccess({
       deletedId: itemId

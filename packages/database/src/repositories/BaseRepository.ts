@@ -64,7 +64,7 @@ export class BaseRepository {
       return doc;
     }
     
-    const { _rid, _self, _etag, _attachments, _ts, ...clean } = doc;
+    const { _rid: _, _self: __, _etag: ___, _attachments: ____, _ts: _____, ...clean } = doc;
     return clean as T;
   }
 

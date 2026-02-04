@@ -37,25 +37,13 @@ export const replaceTeamCoach = withAdminAuth(async (user, input: ReplaceTeamCoa
     }
     
     const db = getDatabaseClient();
-    const usersContainer = db.getContainer('users');
-    const teamsContainer = db.getContainer('teams');
     
     // Find old coach's team
-    const oldTeamQuery = {
-      query: 'SELECT * FROM c WHERE c.type = @type AND c.managerId = @managerId',
-      parameters: [
-        { name: '@type', value: 'team_relationship' },
-        { name: '@managerId', value: oldCoachId }
-      ]
-    };
+    const oldTeam = await db.teams.getTeamByManagerId(oldCoachId);
     
-    const { resources: oldTeams } = await teamsContainer.items.query(oldTeamQuery).fetchAll();
-    
-    if (oldTeams.length === 0) {
+    if (!oldTeam) {
       throw new Error(`Old coach team not found: ${oldCoachId}`);
     }
-    
-    const oldTeam = oldTeams[0];
     
     // TODO: Implement full logic from Azure Function
     // This includes: disband team, replace coach, merge teams, handle member reassignments

@@ -31,8 +31,8 @@ export const getUserData = withAuth(async (user, userId: string) => {
     // Load all data in parallel - dreams, connects, week, and scoring don't depend on each other
     const [dreamsDoc, connects, currentWeekDoc, scoringDoc] = await Promise.all([
       db.dreams.getDreamsDocument(userId),
-      db.connects.getConnectsByUser(userId),
-      db.weeks.getCurrentWeek(userId, currentYear),
+      db.connects.getConnects(userId),
+      db.weeks.getCurrentWeek(userId),
       db.scoring.getScoringDocument(userId, currentYear)
     ]);
     

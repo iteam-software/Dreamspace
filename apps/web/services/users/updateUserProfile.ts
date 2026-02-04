@@ -67,23 +67,23 @@ export const updateUserProfile = withAuth(async (user, userId: string, profileDa
       department: profileData.department || existingDocument?.department || '',
       manager: profileData.manager || existingDocument?.manager || '',
       // SECURITY: Never trust client-supplied roles
-      roles: existingDocument?.roles || {
+      roles: (existingDocument as any)?.roles || {
         admin: false,
         coach: false,
         employee: true
       },
       // Aggregates
-      score: existingDocument?.score || 0,
-      dreamsCount: existingDocument?.dreamsCount || 0,
-      connectsCount: existingDocument?.connectsCount || 0,
-      weeksActiveCount: existingDocument?.weeksActiveCount || 0,
+      score: (existingDocument as any)?.score || 0,
+      dreamsCount: (existingDocument as any)?.dreamsCount || 0,
+      connectsCount: (existingDocument as any)?.connectsCount || 0,
+      weeksActiveCount: (existingDocument as any)?.weeksActiveCount || 0,
       currentYear: new Date().getFullYear(),
       dataStructureVersion: 3,
       // Derive role from roles object (admin > coach > user)
-      role: existingDocument?.roles?.admin ? 'admin' 
-          : existingDocument?.roles?.coach ? 'coach' 
+      role: (existingDocument as any)?.roles?.admin ? 'admin' 
+          : (existingDocument as any)?.roles?.coach ? 'coach' 
           : 'user',
-      isCoach: existingDocument?.roles?.coach ?? false,
+      isCoach: (existingDocument as any)?.roles?.coach ?? false,
       isActive: existingDocument?.isActive !== false,
       createdAt: existingDocument?.createdAt || new Date().toISOString(),
       lastUpdated: new Date().toISOString(),

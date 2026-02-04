@@ -8,6 +8,7 @@ import {
   ScoringRepository,
   TeamsRepository,
   PromptsRepository,
+  ItemsRepository,
 } from './repositories';
 
 /**
@@ -55,6 +56,10 @@ export const CONTAINER_CONFIG: ContainerConfig = {
     name: 'prompts',
     partitionKey: '/partitionKey',
   },
+  items: {
+    name: 'items',
+    partitionKey: '/userId',
+  },
 };
 
 /**
@@ -74,6 +79,7 @@ export class DatabaseClient {
   public readonly scoring: ScoringRepository;
   public readonly teams: TeamsRepository;
   public readonly prompts: PromptsRepository;
+  public readonly items: ItemsRepository;
 
   private constructor(endpoint: string, key: string, databaseName = 'dreamspace') {
     this.client = new CosmosClient({ endpoint, key });
@@ -87,6 +93,7 @@ export class DatabaseClient {
     this.scoring = new ScoringRepository(this.database, CONTAINER_CONFIG);
     this.teams = new TeamsRepository(this.database, CONTAINER_CONFIG);
     this.prompts = new PromptsRepository(this.database, CONTAINER_CONFIG);
+    this.items = new ItemsRepository(this.database, CONTAINER_CONFIG);
   }
 
   /**

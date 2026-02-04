@@ -21,7 +21,7 @@ export const getConnects = withAuth(async (user, userId: string) => {
     }
     
     const db = getDatabaseClient();
-    const connects = await db.connects.getConnectsByUser(userId);
+    const connects = await db.connects.getConnects(userId);
     
     return createActionSuccess(connects || []);
   } catch (error) {

@@ -2,6 +2,7 @@
 
 import { withAdminAuth, createActionSuccess, handleActionError } from '@/lib/actions';
 import { getDatabaseClient } from '@dreamspace/database';
+import type { UserProfile } from '@dreamspace/shared';
 
 interface GetAllUsersResponse {
   users: any[];
@@ -15,36 +16,26 @@ interface GetAllUsersResponse {
  * 
  * @returns List of users with appropriate data based on caller's role
  */
-export const getAllUsers = withAdminAuth(async (user): Promise<{ failed: boolean; data?: GetAllUsersResponse; errors?: any[] }> => {
+export const getAllUsers = withAdminAuth(async (user): Promise<{ failed?: boolean; data?: GetAllUsersResponse; errors?: any[] } | any> => {
   try {
     const db = getDatabaseClient();
     
     // Query all users - Note: admin check already done by withAdminAuth
-    const container = db.getContainer('users');
-    const query = {
-      query: 'SELECT * FROM c WHERE c.type = @type OR NOT IS_DEFINED(c.type)',
-      parameters: [{ name: '@type', value: 'user' }]
-    };
-    
-    const { resources: users } = await container.items.query(query).fetchAll();
+    const users = await db.users.getAllUsers();
     
     // Load dreams from dreams container (v3 6-container architecture)
-    const dreamsContainer = db.getContainer('dreams');
-    const dreamsQuery = {
-      query: 'SELECT c.id, c.userId, c.dreams, c.dreamBook FROM c'
-    };
-    const { resources: dreamsDocs } = await dreamsContainer.items.query(dreamsQuery).fetchAll();
+    const dreamsDocs = await db.dreams.getDreamsDocuments();
     
     // Create a map of userId -> dreams for efficient lookup
     const dreamsByUser: Record<string, any[]> = {};
     for (const doc of dreamsDocs) {
-      const userId = doc.userId || doc.id;
-      dreamsByUser[userId] = doc.dreams || doc.dreamBook || [];
+      const userId = doc.userId || (doc as any).id;
+      dreamsByUser[userId] = (doc as any).dreams || (doc as any).dreamBook || [];
     }
     
     // Transform users to match expected format
-    const formattedUsers = users.map(userData => {
-      const currentUser = userData.currentUser || {};
+    const formattedUsers = users.map((userData: any) => {
+      const currentUser = (userData as any).currentUser || {} as any;
       const bestName = currentUser.name || userData.name || userData.displayName || 'Unknown User';
       const bestOffice = currentUser.office || userData.office || userData.officeLocation || 'Unknown';
       const bestAvatar = currentUser.avatar || userData.avatar || userData.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(bestName)}&background=6366f1&color=fff&size=100`;
@@ -82,7 +73,7 @@ export const getAllUsers = withAdminAuth(async (user): Promise<{ failed: boolean
         role: userData.role || 'user',
         roles: userData.roles || { admin: false, coach: false, employee: true },
         lastActiveAt: userData.lastActiveAt || userData.lastModified || new Date().toISOString(),
-        createdAt: userData.createdAt || (userData._ts ? new Date(userData._ts * 1000).toISOString() : new Date().toISOString()),
+        createdAt: userData.createdAt || ((userData as any)._ts ? new Date((userData as any)._ts * 1000).toISOString() : new Date().toISOString()),
         title: userData.title || '',
         department: userData.department || '',
         manager: userData.manager || '',

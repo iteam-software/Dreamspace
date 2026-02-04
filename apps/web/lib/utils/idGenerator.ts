@@ -20,7 +20,7 @@ export function generateTeamId(): string {
  * Generate a short, unique meeting ID
  * Format: mtg_XXXXXXXX (8 alphanumeric chars)
  */
-export function generateMeetingId(teamId?: string): string {
+export function generateMeetingId(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let id = '';
   for (let i = 0; i < 8; i++) {

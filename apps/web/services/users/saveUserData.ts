@@ -50,7 +50,7 @@ export const saveUserData = withAuth(async (user, userData: SaveUserDataInput) =
     } = userProfile;
     
     // Remove yearVision from existing profile if it exists
-    const { yearVision: _yv, ...existingProfileClean } = existingProfile || {};
+    const { yearVision: _yv, ...existingProfileClean } = (existingProfile as any) || {};
     
     const updatedProfile = {
       ...existingProfileClean, // Keep existing data (without yearVision)
@@ -58,7 +58,7 @@ export const saveUserData = withAuth(async (user, userData: SaveUserDataInput) =
       // Explicitly preserve cardBackgroundImage from existing profile if not in profileData
       cardBackgroundImage: profileData.cardBackgroundImage !== undefined 
         ? profileData.cardBackgroundImage 
-        : (existingProfileClean?.cardBackgroundImage || undefined),
+        : ((existingProfileClean as any)?.cardBackgroundImage || undefined),
       id: userId,
       userId: userId,
       dataStructureVersion: 3, // Use version 3 for 6-container architecture

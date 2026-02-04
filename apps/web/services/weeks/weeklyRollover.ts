@@ -19,10 +19,7 @@ export const weeklyRollover = async () => {
     const db = getDatabaseClient();
     
     // Get all users
-    const container = db.getContainer('users');
-    const { resources: users } = await container.items
-      .query('SELECT c.id FROM c')
-      .fetchAll();
+    const users = await db.users.getAllUsers();
     
     const results = {
       total: users.length,

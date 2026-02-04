@@ -28,6 +28,26 @@ export class DreamsRepository extends BaseRepository {
   }
 
   /**
+   * Gets all dreams documents
+   * @returns Array of dreams documents
+   */
+  async getDreamsDocuments(): Promise<DreamsDocument[]> {
+    const container = this.getContainer('dreams');
+    
+    try {
+      const query = {
+        query: 'SELECT c.id, c.userId, c.dreams, c.dreamBook FROM c'
+      };
+      
+      const { resources } = await container.items.query<DreamsDocument>(query).fetchAll();
+      return resources;
+    } catch (error) {
+      console.error('Error fetching dreams documents:', error);
+      return [];
+    }
+  }
+
+  /**
    * Upserts dreams document
    * @param userId - User ID
    * @param dreamsData - Dreams data (dreamBook, weeklyGoalTemplates)

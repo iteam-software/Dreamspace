@@ -71,8 +71,8 @@ export const saveScoring = withAuth(async (user, input: SaveScoringInput) => {
       // Update existing document - add entry and update total
       document = {
         ...existingDoc,
-        totalScore: (existingDoc.totalScore || 0) + newEntry.points,
-        entries: [...(existingDoc.entries || []), newEntry],
+        totalScore: ((existingDoc as any).totalScore || 0) + newEntry.points,
+        entries: [...((existingDoc as any).entries || []), newEntry],
         updatedAt: new Date().toISOString()
       };
     } else {

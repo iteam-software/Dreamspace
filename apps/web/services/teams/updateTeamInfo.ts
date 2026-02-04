@@ -31,24 +31,12 @@ export const updateTeamInfo = withCoachAuth(async (user, input: UpdateTeamInfoIn
     }
     
     const db = getDatabaseClient();
-    const container = db.getContainer('teams');
     
-    // Find the team
-    const teamQuery = {
-      query: 'SELECT * FROM c WHERE c.type = @type AND c.managerId = @managerId',
-      parameters: [
-        { name: '@type', value: 'team_relationship' },
-        { name: '@managerId', value: managerId }
-      ]
-    };
+    const team = await db.teams.getTeamByManagerId(managerId);
     
-    const { resources: teams } = await container.items.query(teamQuery).fetchAll();
-    
-    if (teams.length === 0) {
+    if (!team) {
       throw new Error(`No team found for manager: ${managerId}`);
     }
-    
-    const team = teams[0];
     
     // Update team with interests, regions, and meeting draft
     const updatedTeam = {
@@ -59,7 +47,7 @@ export const updateTeamInfo = withCoachAuth(async (user, input: UpdateTeamInfoIn
       lastModified: new Date().toISOString()
     };
     
-    await container.item(team.id, team.managerId).replace(updatedTeam);
+    await db.teams.updateTeam(team.id, team.managerId, updatedTeam);
     
     return createActionSuccess({
       managerId,
