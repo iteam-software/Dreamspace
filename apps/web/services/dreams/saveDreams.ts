@@ -64,7 +64,7 @@ export const saveDreams = withAuth(async (user, input: SaveDreamsInput) => {
         })),
         progress: dream.progress || 0,
         targetDate: dream.targetDate,
-        image: dream.image || dream.picture,
+        image: dream.image || dream.picture, // Support both 'image' (new) and 'picture' (legacy)
         notes: dream.notes || [],
         coachNotes: dream.coachNotes || [],
         history: dream.history || [],

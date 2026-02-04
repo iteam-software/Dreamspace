@@ -39,7 +39,7 @@ export const saveUserData = withAuth(async (user, userData: SaveUserDataInput) =
     const userProfile = userData.currentUser || userData;
     const {
       dreamBook, weeklyGoals, scoringHistory, connects,
-      yearVision, // Remove - belongs in dreams container
+      yearVision, // This belongs in dreams container - intentionally excluded from user profile
       isAuthenticated, // Remove this from profile
       _rid, _self, _etag, _attachments, _ts, // Remove Cosmos metadata
       ...profileData

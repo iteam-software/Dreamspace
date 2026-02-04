@@ -55,7 +55,7 @@ export const saveScoring = withAuth(async (user, input: SaveScoringInput) => {
     
     // Prepare the new entry
     const newEntry = {
-      id: entry.id || `score_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: entry.id || `score_${Date.now()}_${crypto.randomUUID()}`,
       date: entry.date || new Date().toISOString().split('T')[0],
       source: entry.source,
       dreamId: entry.dreamId,

@@ -56,7 +56,17 @@ export const uploadProfilePicture = withAuth(async (user, userId: string, imageD
     
     // Create safe filename
     const safeUserId = userId.replace(/[^a-zA-Z0-9-_@.]/g, '_');
-    const blobName = `${safeUserId}.jpg`;
+    
+    // Determine extension from content type
+    const extensionMap: Record<string, string> = { 
+      'image/webp': 'webp', 
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg', 
+      'image/png': 'png',
+      'image/gif': 'gif'
+    };
+    const extension = extensionMap[contentType] || 'jpg';
+    const blobName = `${safeUserId}.${extension}`;
     
     // Get blob client
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
