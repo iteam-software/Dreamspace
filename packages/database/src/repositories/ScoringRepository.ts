@@ -52,6 +52,16 @@ export class ScoringRepository extends BaseRepository {
   }
 
   /**
+   * Gets scoring document for a specific year (alias for getScoring)
+   * @param userId - User ID
+   * @param year - Year
+   * @returns Scoring document or null if not found
+   */
+  async getScoringDocument(userId: string, year: number): Promise<ScoringDocument | null> {
+    return this.getScoring(userId, year);
+  }
+
+  /**
    * Upserts scoring document
    * @param userId - User ID
    * @param year - Year

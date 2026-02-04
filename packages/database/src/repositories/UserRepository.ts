@@ -28,6 +28,52 @@ export class UserRepository extends BaseRepository {
   }
 
   /**
+   * Gets all user profiles
+   * @returns Array of user profiles
+   */
+  async getAllUsers(): Promise<UserProfile[]> {
+    const container = this.getContainer('users');
+    
+    try {
+      const query = {
+        query: 'SELECT * FROM c',
+      };
+      
+      const { resources } = await container.items.query<UserProfile>(query).fetchAll();
+      return resources;
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Gets multiple user profiles by user IDs
+   * @param userIds - Array of user IDs
+   * @returns Array of user profiles
+   */
+  async getUsersByIds(userIds: string[]): Promise<UserProfile[]> {
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    const container = this.getContainer('users');
+    
+    try {
+      const query = {
+        query: `SELECT * FROM c WHERE c.userId IN (${userIds.map((_, i) => `@userId${i}`).join(', ')})`,
+        parameters: userIds.map((id: string, i: number) => ({ name: `@userId${i}`, value: id }))
+      };
+      
+      const { resources } = await container.items.query<UserProfile>(query).fetchAll();
+      return resources;
+    } catch (error) {
+      console.error('Error fetching users by IDs:', error);
+      return [];
+    }
+  }
+
+  /**
    * Upserts a user profile
    * @param userId - User ID
    * @param profile - User profile data
@@ -49,6 +95,32 @@ export class UserRepository extends BaseRepository {
     
     if (!resource) {
       throw new Error('Failed to upsert user profile');
+    }
+    
+    return this.castResource<UserProfile>(resource);
+  }
+
+  /**
+   * Updates a user profile by ID
+   * @param userId - User ID
+   * @param profileData - User profile data to update
+   * @returns Updated user profile
+   */
+  async updateUserProfile(userId: string, profileData: Partial<UserProfile>): Promise<UserProfile> {
+    const container = this.getContainer('users');
+    
+    const document: UserProfile = {
+      ...profileData,
+      id: userId,
+      userId,
+    } as UserProfile;
+
+    this.addTimestamps(document, !profileData.createdAt);
+
+    const { resource } = await container.item(userId, userId).replace(document);
+    
+    if (!resource) {
+      throw new Error('Failed to update user profile');
     }
     
     return this.castResource<UserProfile>(resource);

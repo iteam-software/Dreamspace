@@ -9,3 +9,4 @@ export * from './ConnectsRepository';
 export * from './ScoringRepository';
 export * from './TeamsRepository';
 export * from './PromptsRepository';
+export * from './ItemsRepository';
