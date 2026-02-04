@@ -4,6 +4,8 @@
  */
 export * from './ActionResult';
 export * from './withAuth';
+export * from './withAdminAuth';
+export * from './withCoachAuth';
 export * from './formatZodError';
 export * from './createActionError';
 export * from './createActionSuccess';
