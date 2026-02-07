@@ -1,28 +1,16 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useState,
-  ReactNode,
-  useOptimistic,
-  useCallback,
-  useTransition,
-} from "react";
+import React, { createContext, useContext, ReactNode } from "react";
 import { List } from "immutable";
-import * as ScoringService from "@/services/scoring";
 import { ScoringEntry } from "./types";
-import { useSession } from "next-auth/react";
-import { useErrors } from "../ErrorsContext";
 
 /**
- * Scoring context state
+ * Scoring context state - READ ONLY
+ * Mutations should be handled by server actions that trigger revalidation
  */
 type ScoringContextState = {
   entries: List<ScoringEntry>;
   allTimeScore: number;
-  pending: boolean;
-  add: (entry: ScoringEntry) => void;
 };
 
 const ScoringContext = createContext<ScoringContextState | undefined>(
@@ -36,74 +24,21 @@ interface ScoringProviderProps {
 }
 
 /**
- * Scoring context provider
- * Manages scorecard and activity scoring state with immutable data structures
- * Loads data on initialization and saves optimistically via services
+ * Scoring context provider - READ ONLY
+ * Provides scorecard and activity scoring data to components.
+ * Mutations are handled via server actions (not context methods).
+ * Server actions should use revalidatePath/revalidateTag to refresh this data.
  */
 export function ScoringProvider({
   children,
   data,
-  allTimeScore: initialScore,
+  allTimeScore,
 }: ScoringProviderProps) {
-  const session = useSession();
-  const errors = useErrors();
-  const [state, setState] = useState(List(data));
-  const [entries, setEntries] = useOptimistic(state);
-  const [scoreState, setScoreState] = useState(initialScore);
-  const [allTimeScore, setAllTimeScore] = useOptimistic(scoreState);
-  const [pending, startTransition] = useTransition();
-
-  if (!session.data?.user?.id) {
-    return null;
-  }
-
-  const userId = session.data.user.id;
-
-  /**
-   * Add a scoring entry with optimistic update and server persistence
-   */
-  const addEntry = useCallback(
-    (entry: ScoringEntry) => {
-      const next = entries.unshift(entry);
-      const nextScore = allTimeScore + entry.points;
-      setEntries(next);
-      setAllTimeScore(nextScore);
-
-      startTransition(async () => {
-        const year = new Date(entry.date).getFullYear();
-        const result = await ScoringService.saveScoring({
-          userId,
-          year,
-          entry: {
-            id: entry.id,
-            date: entry.date,
-            source: entry.source || "manual",
-            dreamId: entry.dreamId,
-            weekId: entry.weekId,
-            connectId: entry.connectId,
-            points: entry.points,
-            activity: entry.activity,
-            createdAt: entry.createdAt,
-          },
-        });
-        if (result.failed) {
-          errors.dispatch(result.errors._errors.join(","));
-        } else {
-          setState(next);
-          setScoreState(nextScore);
-        }
-      });
-    },
-    [setState, setEntries, entries, allTimeScore, setAllTimeScore, userId],
-  );
-
   return (
     <ScoringContext.Provider
       value={{
-        entries,
+        entries: List(data),
         allTimeScore,
-        pending,
-        add: addEntry,
       }}
     >
       {children}
@@ -112,7 +47,8 @@ export function ScoringProvider({
 }
 
 /**
- * Hook to use scoring context
+ * Hook to use scoring context - READ ONLY
+ * For mutations, use server actions from @/services/scoring
  */
 export function useScoring() {
   const context = useContext(ScoringContext);

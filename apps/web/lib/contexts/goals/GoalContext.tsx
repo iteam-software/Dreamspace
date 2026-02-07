@@ -1,30 +1,16 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useState,
-  ReactNode,
-  useOptimistic,
-  useCallback,
-  useTransition,
-} from "react";
+import React, { createContext, useContext, ReactNode } from "react";
 import { List } from "immutable";
-import * as WeeksService from "@/services/weeks";
 import { WeeklyGoal } from "./types";
-import { useSession } from "next-auth/react";
-import { useErrors } from "../ErrorsContext";
 
 /**
- * Goal context state
+ * Goal context state - READ ONLY
+ * Mutations should be handled by server actions that trigger revalidation
  */
 type GoalContextState = {
   goals: List<WeeklyGoal>;
-  pending: boolean;
-  add: (goal: WeeklyGoal) => void;
-  update: (id: string, updates: Partial<WeeklyGoal>) => void;
-  $delete: (id: string) => void;
-  toggle: (id: string) => void;
+  weekId: string;
 };
 
 const GoalContext = createContext<GoalContextState | undefined>(undefined);
@@ -36,141 +22,17 @@ interface GoalProviderProps {
 }
 
 /**
- * Goal context provider
- * Manages weekly goals state with immutable data structures
- * Loads data on initialization and saves optimistically via services
+ * Goal context provider - READ ONLY
+ * Provides weekly goals data to components.
+ * Mutations are handled via server actions (not context methods).
+ * Server actions should use revalidatePath/revalidateTag to refresh this data.
  */
 export function GoalProvider({ children, data, weekId }: GoalProviderProps) {
-  const session = useSession();
-  const errors = useErrors();
-  const [state, setState] = useState(List(data));
-  const [goals, setGoals] = useOptimistic(state);
-  const [pending, startTransition] = useTransition();
-
-  if (!session.data?.user?.id) {
-    return null;
-  }
-
-  const userId = session.data.user.id;
-
-  /**
-   * Add a weekly goal with optimistic update and server persistence
-   */
-  const addGoal = useCallback(
-    (goal: WeeklyGoal) => {
-      const next = goals.push(goal);
-      setGoals(next);
-
-      startTransition(async () => {
-        const result = await WeeksService.saveCurrentWeek({
-          userId,
-          weekId,
-          goals: next.toArray(),
-        });
-        if (result.failed) {
-          errors.dispatch(result.errors._errors.join(","));
-        } else {
-          setState(next);
-        }
-      });
-    },
-    [setState, setGoals, goals, weekId, userId],
-  );
-
-  /**
-   * Update a weekly goal with optimistic update and server persistence
-   */
-  const updateGoal = useCallback(
-    (id: string, updates: Partial<WeeklyGoal>) => {
-      const index = goals.findIndex((g) => g.id === id);
-      if (index === -1) return;
-
-      const next = goals.update(index, (g) => ({ ...g!, ...updates }));
-      setGoals(next);
-
-      startTransition(async () => {
-        const result = await WeeksService.saveCurrentWeek({
-          userId,
-          weekId,
-          goals: next.toArray(),
-        });
-        if (result.failed) {
-          errors.dispatch(result.errors._errors.join(","));
-        } else {
-          setState(next);
-        }
-      });
-    },
-    [setState, setGoals, goals, weekId, userId],
-  );
-
-  /**
-   * Delete a weekly goal with optimistic update and server persistence
-   */
-  const deleteGoal = useCallback(
-    (id: string) => {
-      const index = goals.findIndex((g) => g.id === id);
-      if (index === -1) return;
-
-      const next = goals.delete(index);
-      setGoals(next);
-
-      startTransition(async () => {
-        const result = await WeeksService.saveCurrentWeek({
-          userId,
-          weekId,
-          goals: next.toArray(),
-        });
-        if (result.failed) {
-          errors.dispatch(result.errors._errors.join(","));
-        } else {
-          setState(next);
-        }
-      });
-    },
-    [setState, setGoals, goals, weekId, userId],
-  );
-
-  /**
-   * Toggle a weekly goal completion with optimistic update and server persistence
-   */
-  const toggleGoal = useCallback(
-    (id: string) => {
-      const index = goals.findIndex((g) => g.id === id);
-      if (index === -1) return;
-
-      const next = goals.update(index, (g) => ({
-        ...g!,
-        completed: !g!.completed,
-        completedAt: !g!.completed ? new Date().toISOString() : undefined,
-      }));
-      setGoals(next);
-
-      startTransition(async () => {
-        const result = await WeeksService.saveCurrentWeek({
-          userId,
-          weekId,
-          goals: next.toArray(),
-        });
-        if (result.failed) {
-          errors.dispatch(result.errors._errors.join(","));
-        } else {
-          setState(next);
-        }
-      });
-    },
-    [setState, setGoals, goals, weekId, userId],
-  );
-
   return (
     <GoalContext.Provider
       value={{
-        goals,
-        pending,
-        add: addGoal,
-        update: updateGoal,
-        $delete: deleteGoal,
-        toggle: toggleGoal,
+        goals: List(data),
+        weekId,
       }}
     >
       {children}
@@ -179,7 +41,8 @@ export function GoalProvider({ children, data, weekId }: GoalProviderProps) {
 }
 
 /**
- * Hook to use goal context
+ * Hook to use goal context - READ ONLY
+ * For mutations, use server actions from @/services/weeks
  */
 export function useGoals() {
   const context = useContext(GoalContext);

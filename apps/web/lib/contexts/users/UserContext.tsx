@@ -1,27 +1,14 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useState,
-  ReactNode,
-  useOptimistic,
-  useCallback,
-  useTransition,
-} from "react";
-import * as UsersService from "@/services/users";
+import React, { createContext, useContext, ReactNode } from "react";
 import { User } from "./types";
-import { useSession } from "next-auth/react";
-import { useErrors } from "../ErrorsContext";
 
 /**
- * User context state
+ * User context state - READ ONLY
+ * Mutations should be handled by server actions that trigger revalidation
  */
 type UserContextState = {
   user: User | null;
-  pending: boolean;
-  update: (updates: Partial<User>) => void;
-  updateScore: (score: number) => void;
 };
 
 const UserContext = createContext<UserContextState | undefined>(undefined);
@@ -32,80 +19,16 @@ interface UserProviderProps {
 }
 
 /**
- * User context provider
- * Manages current user profile state with immutable data structures
- * Loads data on initialization and saves optimistically via services
+ * User context provider - READ ONLY
+ * Provides current user profile data to components.
+ * Mutations are handled via server actions (not context methods).
+ * Server actions should use revalidatePath/revalidateTag to refresh this data.
  */
 export function UserProvider({ children, data }: UserProviderProps) {
-  const session = useSession();
-  const errors = useErrors();
-  const [state, setState] = useState(data);
-  const [user, setUser] = useOptimistic(state);
-  const [pending, startTransition] = useTransition();
-
-  if (!session.data?.user?.id) {
-    return null;
-  }
-
-  const userId = session.data.user.id;
-
-  /**
-   * Update user profile with optimistic update and server persistence
-   */
-  const updateUser = useCallback(
-    (updates: Partial<User>) => {
-      if (!user) return;
-
-      const next = { ...user, ...updates };
-      setUser(next);
-
-      startTransition(async () => {
-        const result = await UsersService.saveUserData({
-          userId,
-          ...next,
-        });
-        if (result.failed) {
-          errors.dispatch(result.errors._errors.join(","));
-        } else {
-          setState(next);
-        }
-      });
-    },
-    [setState, setUser, user, userId],
-  );
-
-  /**
-   * Update score with optimistic update and server persistence
-   */
-  const updateScore = useCallback(
-    (score: number) => {
-      if (!user) return;
-
-      const next = { ...user, score };
-      setUser(next);
-
-      startTransition(async () => {
-        const result = await UsersService.saveUserData({
-          userId,
-          score,
-        });
-        if (result.failed) {
-          errors.dispatch(result.errors._errors.join(","));
-        } else {
-          setState(next);
-        }
-      });
-    },
-    [setState, setUser, user, userId],
-  );
-
   return (
     <UserContext.Provider
       value={{
-        user,
-        pending,
-        update: updateUser,
-        updateScore,
+        user: data,
       }}
     >
       {children}
@@ -114,7 +37,8 @@ export function UserProvider({ children, data }: UserProviderProps) {
 }
 
 /**
- * Hook to use user context
+ * Hook to use user context - READ ONLY
+ * For mutations, use server actions from @/services/users
  */
 export function useUser() {
   const context = useContext(UserContext);
