@@ -13,6 +13,7 @@ import { List } from "immutable";
 import * as DreamsService from "@/services/dreams";
 import { Dream } from "./types";
 import { useSession } from "next-auth/react";
+import { useErrors } from "../ErrorsContext";
 
 /**
  * Dream context state
@@ -21,11 +22,11 @@ type DreamContextState = {
   dreams: List<Dream>;
   yearVision: string;
   pending: boolean;
-  setYearVision: (vision: string) => Promise<void>;
-  add: (dream: Dream) => Promise<void>;
-  update: (id: string, updates: Partial<Dream>) => Promise<void>;
-  $delete: (id: string) => Promise<void>;
-  reorder: (dreams: Dream[]) => Promise<void>;
+  setYearVision: (vision: string) => void;
+  add: (dream: Dream) => void;
+  update: (id: string, updates: Partial<Dream>) => void;
+  $delete: (id: string) => void;
+  reorder: (dreams: Dream[]) => void;
 };
 
 const DreamContext = createContext<DreamContextState | undefined>(undefined);
@@ -42,9 +43,11 @@ interface DreamsProviderProps {
  */
 export function DreamProvider({ children, data }: DreamsProviderProps) {
   const session = useSession();
+  const errors = useErrors();
   const [state, setState] = useState(List(data));
   const [dreams, setDreams] = useOptimistic(state);
-  const [yearVision, setYearVisionState] = useState("");
+  const [visionState, setVisionState] = useState("");
+  const [vision, setVision] = useOptimistic(visionState);
   const [pending, startTransition] = useTransition();
 
   if (!session.data?.user?.id) {
@@ -56,52 +59,43 @@ export function DreamProvider({ children, data }: DreamsProviderProps) {
   /**
    * Update year vision with optimistic update and server persistence
    */
-  const setYearVision = async (vision: string) => {
+  const setYearVision = (vision: string) => {
     // Optimistic update
-    const previousVision = yearVision;
-    setYearVisionState(vision);
+    setVision(vision);
 
-    try {
+    startTransition(async () => {
       const result = await DreamsService.saveYearVision({
         userId,
         yearVision: vision,
       });
       if (result.failed) {
-        // Rollback on failure
-        setYearVisionState(previousVision);
-        console.error("Failed to save year vision:", result.errors);
+        errors.dispatch(result.errors._errors.join(","));
+      } else {
+        setVisionState(vision);
       }
-    } catch (error) {
-      // Rollback on error
-      setYearVisionState(previousVision);
-      console.error("Error saving year vision:", error);
-    }
+    });
   };
 
   /**
    * Add a dream with optimistic update and server persistence
    */
-  const add = useCallback(
-    async (dream: Dream) => {
+  const addDream = useCallback(
+    (dream: Dream) => {
       // Optimistic update
       const next = dreams.push(dream);
       setDreams(next);
 
-      try {
-        startTransition(async () => {
-          const result = await DreamsService.saveDreams({
-            userId,
-            dreams: next.toArray().map((d) => d),
-          });
-          if (result.failed) {
-            console.error("Failed to save dream:", result.errors);
-          } else {
-            setState(next);
-          }
+      startTransition(async () => {
+        const result = await DreamsService.saveDreams({
+          userId,
+          dreams: next.toArray(),
         });
-      } catch (error) {
-        console.error("Unexpected error saving dream:", error);
-      }
+        if (result.failed) {
+          errors.dispatch(result.errors._errors.join(","));
+        } else {
+          setState(next);
+        }
+      });
     },
     [setState, setDreams, dreams],
   );
@@ -109,103 +103,84 @@ export function DreamProvider({ children, data }: DreamsProviderProps) {
   /**
    * Update a dream with optimistic update and server persistence
    */
-  const updateDream = async (id: string, updates: Partial<Dream>) => {
-    // Optimistic update
-    const index = dreams.findIndex((d) => d.id === id);
-    if (index === -1) return;
+  const updateDream = useCallback(
+    (id: string, updates: Partial<Dream>) => {
+      const index = dreams.findIndex((d) => d.id === id);
+      if (index === -1) return;
 
-    // const updatedDream = dreams.get(index)!.merge(updates);
-    const next = dreams.update(index, (d) => ({ ...d!, ...updates }));
+      const next = dreams.update(index, (d) => ({ ...d!, ...updates }));
+      setDreams(next);
 
-    setDreams(next);
-
-    try {
-      const result = await DreamsService.saveDreams({
-        userId,
-        dreams: next.toArray(),
+      startTransition(async () => {
+        const result = await DreamsService.saveDreams({
+          userId,
+          dreams: next.toArray(),
+        });
+        if (result.failed) {
+          errors.dispatch(result.errors._errors.join(","));
+        } else {
+          setState(next);
+        }
       });
-      if (result.failed) {
-        // Rollback on failure
-        setDreams(previousDreams);
-        console.error("Failed to update dream:", result.errors);
-      }
-    } catch (error) {
-      // Rollback on error
-      setDreams(previousDreams);
-      console.error("Error updating dream:", error);
-    }
-  };
+    },
+    [setState, setDreams, dreams],
+  );
 
   /**
    * Delete a dream with optimistic update and server persistence
    */
-  const deleteDream = async (id: string) => {
-    if (!userId) return;
+  const deleteDream = useCallback(
+    (id: string) => {
+      const index = dreams.findIndex((d) => d.id === id);
+      if (index === -1) return;
 
-    // Optimistic update
-    const previousDreams = dreams;
-    const index = dreams.findIndex((d) => d.get("id") === id);
-    if (index === -1) return;
+      const next = dreams.delete(index);
+      setDreams(next);
 
-    setDreams(dreams.delete(index));
-
-    try {
-      const dreamsArray = dreams
-        .delete(index)
-        .toArray()
-        .map((d) => d.toObject());
-      const result = await DreamsService.saveDreams({
-        userId,
-        dreams: dreamsArray,
+      startTransition(async () => {
+        const result = await DreamsService.saveDreams({
+          userId,
+          dreams: next.toArray(),
+        });
+        if (result.failed) {
+          errors.dispatch(result.errors._errors.join(","));
+        } else {
+          setState(next);
+        }
       });
-      if (result.failed) {
-        // Rollback on failure
-        setDreams(previousDreams);
-        console.error("Failed to delete dream:", result.errors);
-      }
-    } catch (error) {
-      // Rollback on error
-      setDreams(previousDreams);
-      console.error("Error deleting dream:", error);
-    }
-  };
+    },
+    [setState, setDreams, dreams],
+  );
 
   /**
    * Reorder dreams with optimistic update and server persistence
    */
-  const reorderDreams = async (newDreams: Dream[]) => {
-    if (!userId) return;
+  const reorderDreams = useCallback(
+    (newDreams: Dream[]) => {
+      const next = List(newDreams);
+      setDreams(next);
 
-    // Optimistic update
-    const previousDreams = dreams;
-    const dreamRecords = List(newDreams.map((d) => DreamRecord(d)));
-    setDreams(dreamRecords);
-
-    try {
-      const result = await DreamsService.saveDreams({
-        userId,
-        dreams: newDreams,
+      startTransition(async () => {
+        const result = await DreamsService.saveDreams({
+          userId,
+          dreams: newDreams,
+        });
+        if (result.failed) {
+          errors.dispatch(result.errors._errors.join(","));
+        } else {
+          setState(next);
+        }
       });
-      if (result.failed) {
-        // Rollback on failure
-        setDreams(previousDreams);
-        console.error("Failed to reorder dreams:", result.errors);
-      }
-    } catch (error) {
-      // Rollback on error
-      setDreams(previousDreams);
-      console.error("Error reordering dreams:", error);
-    }
-  };
+    },
+    [setState, setDreams],
+  );
 
   return (
     <DreamContext.Provider
       value={{
         dreams,
-        yearVision,
+        yearVision: vision,
         pending,
-        userId,
-        loadDreams,
         setYearVision,
         add: addDream,
         update: updateDream,
