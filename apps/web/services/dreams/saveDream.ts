@@ -3,13 +3,13 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { zfd } from 'zod-form-data';
-import { withAuth, createActionSuccess, handleActionError } from '@/lib/actions';
+import { withAuth, createActionSuccess } from '@/lib/actions';
 import { getDatabaseClient } from '@dreamspace/database';
 
 /**
- * Form action state for dream mutations
+ * Form action state for dream save
  */
-export type DreamFormState = {
+export type SaveDreamState = {
   success: boolean;
   errors?: {
     title?: string[];
@@ -44,10 +44,10 @@ const dreamFormSchema = zfd.formData({
  * @param formData - Form data from submission
  * @returns Form state with success/error information
  */
-export async function saveDreamFormAction(
-  prevState: DreamFormState | null,
+export async function saveDream(
+  prevState: SaveDreamState | null,
   formData: FormData
-): Promise<DreamFormState> {
+): Promise<SaveDreamState> {
   try {
     // Validate form data
     const validatedData = dreamFormSchema.parse(formData);
@@ -140,86 +140,6 @@ export async function saveDreamFormAction(
         },
       };
     }
-    
-    return {
-      success: false,
-      errors: {
-        _form: ['An unexpected error occurred'],
-      },
-    };
-  }
-}
-
-/**
- * Delete a dream via form submission
- * Compatible with useActionState/useFormState
- * 
- * @param prevState - Previous form state
- * @param formData - Form data with dream ID
- * @returns Form state with success/error information
- */
-export async function deleteDreamFormAction(
-  prevState: DreamFormState | null,
-  formData: FormData
-): Promise<DreamFormState> {
-  try {
-    const dreamId = formData.get('id')?.toString();
-    
-    if (!dreamId) {
-      return {
-        success: false,
-        errors: {
-          _form: ['Dream ID is required'],
-        },
-      };
-    }
-    
-    const result = await withAuth(async (user) => {
-      const userId = user.id;
-      const db = getDatabaseClient();
-      
-      // Get existing dreams
-      const dreamsDoc = await db.dreams.getDreamsDocument(userId);
-      const existingDreams = dreamsDoc?.dreams || [];
-      
-      // Filter out the dream
-      const updatedDreams = existingDreams.filter((d: any) => d.id !== dreamId);
-      
-      // Save to database
-      const document = {
-        id: userId,
-        userId: userId,
-        dreams: updatedDreams,
-        weeklyGoalTemplates: dreamsDoc?.weeklyGoalTemplates || [],
-        yearVision: dreamsDoc?.yearVision || '',
-        createdAt: dreamsDoc?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      await db.dreams.upsertDreamsDocument(userId, document);
-      
-      return createActionSuccess({ id: dreamId });
-    })({});
-    
-    if (result.failed) {
-      return {
-        success: false,
-        errors: {
-          _form: result.errors._errors || ['Failed to delete dream'],
-        },
-      };
-    }
-    
-    // Revalidate to refresh context data
-    revalidatePath('/dream-book');
-    revalidatePath('/dashboard');
-    
-    return {
-      success: true,
-      data: { id: dreamId },
-    };
-  } catch (error) {
-    console.error('Failed to delete dream:', error);
     
     return {
       success: false,
