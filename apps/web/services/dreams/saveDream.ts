@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { zfd } from 'zod-form-data';
 import { withAuth, createActionSuccess } from '@/lib/actions';
 import { getDatabaseClient } from '@dreamspace/database';
+import type { DreamBookEntry } from '@dreamspace/shared';
 
 /**
  * Form action state for dream save
@@ -28,12 +29,11 @@ export type SaveDreamState = {
 const dreamFormSchema = zfd.formData({
   id: zfd.text(z.string().optional()),
   title: zfd.text(z.string().min(1, 'Title is required')),
-  category: zfd.text(z.string().min(1, 'Category is required')),
+  category: zfd.text(z.string().optional()),
   description: zfd.text(z.string().optional()),
-  motivation: zfd.text(z.string().optional()),
-  approach: zfd.text(z.string().optional()),
-  progress: zfd.numeric(z.number().min(0).max(100).optional()),
-  image: zfd.text(z.string().optional()),
+  imageUrl: zfd.text(z.string().optional()),
+  imagePrompt: zfd.text(z.string().optional()),
+  targetDate: zfd.text(z.string().optional()),
 });
 
 /**
@@ -57,35 +57,29 @@ export async function saveDream(
       const userId = user.id;
       const db = getDatabaseClient();
       
-      // Get existing dreams
+      // Get existing dreams document
       const dreamsDoc = await db.dreams.getDreamsDocument(userId);
-      const existingDreams = dreamsDoc?.dreams || [];
+      const existingDreams = dreamsDoc?.dreamBook || [];
       
       // Create or update dream
       const dreamId = validatedData.id || `dream_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const dreamIndex = existingDreams.findIndex((d: any) => d.id === dreamId);
+      const dreamIndex = existingDreams.findIndex((d: DreamBookEntry) => d.id === dreamId);
       
-      const dreamData = {
+      const dreamData: DreamBookEntry = {
         id: dreamId,
         title: validatedData.title,
         category: validatedData.category,
-        description: validatedData.description || '',
-        motivation: validatedData.motivation || '',
-        approach: validatedData.approach || '',
-        progress: validatedData.progress || 0,
-        image: validatedData.image || '',
-        notes: dreamIndex >= 0 ? existingDreams[dreamIndex].notes : [],
-        coachNotes: dreamIndex >= 0 ? existingDreams[dreamIndex].coachNotes : [],
-        history: dreamIndex >= 0 ? existingDreams[dreamIndex].history : [],
-        goals: dreamIndex >= 0 ? existingDreams[dreamIndex].goals : [],
-        completed: dreamIndex >= 0 ? existingDreams[dreamIndex].completed : false,
-        isPublic: dreamIndex >= 0 ? existingDreams[dreamIndex].isPublic : false,
+        description: validatedData.description,
+        imageUrl: validatedData.imageUrl,
+        imagePrompt: validatedData.imagePrompt,
+        targetDate: validatedData.targetDate,
+        isCompleted: dreamIndex >= 0 ? existingDreams[dreamIndex].isCompleted : false,
         createdAt: dreamIndex >= 0 ? existingDreams[dreamIndex].createdAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       
       // Update dreams array
-      let updatedDreams;
+      let updatedDreams: DreamBookEntry[];
       if (dreamIndex >= 0) {
         updatedDreams = [...existingDreams];
         updatedDreams[dreamIndex] = dreamData;
@@ -93,13 +87,12 @@ export async function saveDream(
         updatedDreams = [...existingDreams, dreamData];
       }
       
-      // Save to database
+      // Save to database - match DreamsDocument structure
       const document = {
         id: userId,
         userId: userId,
-        dreams: updatedDreams,
+        dreamBook: updatedDreams,
         weeklyGoalTemplates: dreamsDoc?.weeklyGoalTemplates || [],
-        yearVision: dreamsDoc?.yearVision || '',
         createdAt: dreamsDoc?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
