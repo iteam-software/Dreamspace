@@ -1,27 +1,49 @@
 'use server';
 
-import { withCoachAuth, createActionSuccess, handleActionError } from '@/lib/actions';
+import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+import { zfd } from 'zod-form-data';
+import { withCoachAuth, createActionSuccess } from '@/lib/actions';
 import { getDatabaseClient } from '@dreamspace/database';
 
-interface UpdateTeamMissionInput {
-  managerId: string;
-  mission: string;
-}
+/**
+ * Form action state for team mission update
+ */
+export type UpdateTeamMissionState = {
+  success: boolean;
+  errors?: {
+    mission?: string[];
+    _form?: string[];
+  };
+  data?: {
+    managerId: string;
+    mission: string;
+  };
+};
 
 /**
- * Updates a team's mission statement.
+ * Schema for team mission form data
+ */
+const teamMissionFormSchema = zfd.formData({
+  managerId: zfd.text(z.string()),
+  mission: zfd.text(z.string().min(1, 'Team mission is required')),
+});
+
+/**
+ * Update a team's mission statement via form submission
+ * Compatible with useActionState/useFormState
  * Only coaches can update their own team mission.
  * 
- * @param input - Contains managerId and mission
- * @returns Updated team data
+ * @param prevState - Previous form state
+ * @param formData - Form data from submission
+ * @returns Form state with success/error information
  */
-export const updateTeamMission = withCoachAuth(async (user, input: UpdateTeamMissionInput) => {
+export const updateTeamMission = withCoachAuth(async (user, prevState: UpdateTeamMissionState | null, formData: FormData): Promise<UpdateTeamMissionState> => {
   try {
-    const { managerId, mission } = input;
+    // Validate form data
+    const validatedData = teamMissionFormSchema.parse(formData);
     
-    if (!managerId) {
-      throw new Error('Manager ID is required');
-    }
+    const { managerId, mission } = validatedData;
     
     // Verify the authenticated coach is modifying their own team
     if (user.id !== managerId) {
@@ -38,20 +60,38 @@ export const updateTeamMission = withCoachAuth(async (user, input: UpdateTeamMis
     
     const updatedTeam = {
       ...team,
-      mission,
-      lastModified: new Date().toISOString()
+      teamMission: mission,
+      updatedAt: new Date().toISOString(),
     };
     
     await db.teams.updateTeam(team.id, team.managerId, updatedTeam);
     
-    return createActionSuccess({
-      managerId,
-      mission,
-      teamName: team.teamName,
-      lastModified: updatedTeam.lastModified
-    });
+    // Revalidate to refresh context data
+    revalidatePath('/dream-team');
+    revalidatePath('/dashboard');
+    
+    return {
+      success: true,
+      data: { managerId, mission },
+    };
   } catch (error) {
     console.error('Failed to update team mission:', error);
-    return handleActionError(error, 'Failed to update team mission');
+    
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        errors: {
+          mission: error.formErrors.fieldErrors.mission as string[],
+          _form: error.formErrors.formErrors,
+        },
+      };
+    }
+    
+    return {
+      success: false,
+      errors: {
+        _form: ['An unexpected error occurred'],
+      },
+    };
   }
 });
