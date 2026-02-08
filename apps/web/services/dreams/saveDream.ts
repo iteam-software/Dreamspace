@@ -44,72 +44,55 @@ const dreamFormSchema = zfd.formData({
  * @param formData - Form data from submission
  * @returns Form state with success/error information
  */
-export async function saveDream(
-  prevState: SaveDreamState | null,
-  formData: FormData
-): Promise<SaveDreamState> {
+export const saveDream = withAuth(async (user, prevState: SaveDreamState | null, formData: FormData): Promise<SaveDreamState> => {
   try {
     // Validate form data
     const validatedData = dreamFormSchema.parse(formData);
     
-    // Get authenticated user
-    const result = await withAuth(async (user) => {
-      const userId = user.id;
-      const db = getDatabaseClient();
-      
-      // Get existing dreams document
-      const dreamsDoc = await db.dreams.getDreamsDocument(userId);
-      const existingDreams = dreamsDoc?.dreamBook || [];
-      
-      // Create or update dream
-      const dreamId = validatedData.id || `dream_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const dreamIndex = existingDreams.findIndex((d: DreamBookEntry) => d.id === dreamId);
-      
-      const dreamData: DreamBookEntry = {
-        id: dreamId,
-        title: validatedData.title,
-        category: validatedData.category,
-        description: validatedData.description,
-        imageUrl: validatedData.imageUrl,
-        imagePrompt: validatedData.imagePrompt,
-        targetDate: validatedData.targetDate,
-        isCompleted: dreamIndex >= 0 ? existingDreams[dreamIndex].isCompleted : false,
-        createdAt: dreamIndex >= 0 ? existingDreams[dreamIndex].createdAt : new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      // Update dreams array
-      let updatedDreams: DreamBookEntry[];
-      if (dreamIndex >= 0) {
-        updatedDreams = [...existingDreams];
-        updatedDreams[dreamIndex] = dreamData;
-      } else {
-        updatedDreams = [...existingDreams, dreamData];
-      }
-      
-      // Save to database - match DreamsDocument structure
-      const document = {
-        id: userId,
-        userId: userId,
-        dreamBook: updatedDreams,
-        weeklyGoalTemplates: dreamsDoc?.weeklyGoalTemplates || [],
-        createdAt: dreamsDoc?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      await db.dreams.upsertDreamsDocument(userId, document);
-      
-      return createActionSuccess({ id: dreamId });
-    })({});
+    const userId = user.id;
+    const db = getDatabaseClient();
     
-    if (result.failed) {
-      return {
-        success: false,
-        errors: {
-          _form: result.errors._errors || ['Failed to save dream'],
-        },
-      };
+    // Get existing dreams document
+    const dreamsDoc = await db.dreams.getDreamsDocument(userId);
+    const existingDreams = dreamsDoc?.dreamBook || [];
+    
+    // Create or update dream
+    const dreamId = validatedData.id || `dream_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const dreamIndex = existingDreams.findIndex((d: DreamBookEntry) => d.id === dreamId);
+    
+    const dreamData: DreamBookEntry = {
+      id: dreamId,
+      title: validatedData.title,
+      category: validatedData.category,
+      description: validatedData.description,
+      imageUrl: validatedData.imageUrl,
+      imagePrompt: validatedData.imagePrompt,
+      targetDate: validatedData.targetDate,
+      isCompleted: dreamIndex >= 0 ? existingDreams[dreamIndex].isCompleted : false,
+      createdAt: dreamIndex >= 0 ? existingDreams[dreamIndex].createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    // Update dreams array
+    let updatedDreams: DreamBookEntry[];
+    if (dreamIndex >= 0) {
+      updatedDreams = [...existingDreams];
+      updatedDreams[dreamIndex] = dreamData;
+    } else {
+      updatedDreams = [...existingDreams, dreamData];
     }
+    
+    // Save to database - match DreamsDocument structure
+    const document = {
+      id: userId,
+      userId: userId,
+      dreamBook: updatedDreams,
+      weeklyGoalTemplates: dreamsDoc?.weeklyGoalTemplates || [],
+      createdAt: dreamsDoc?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    await db.dreams.upsertDreamsDocument(userId, document);
     
     // Revalidate to refresh context data
     revalidatePath('/dream-book');
@@ -117,7 +100,7 @@ export async function saveDream(
     
     return {
       success: true,
-      data: { id: result.id },
+      data: { id: dreamId },
     };
   } catch (error) {
     console.error('Failed to save dream:', error);
@@ -141,4 +124,4 @@ export async function saveDream(
       },
     };
   }
-}
+});

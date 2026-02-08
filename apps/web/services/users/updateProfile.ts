@@ -43,61 +43,44 @@ const profileFormSchema = zfd.formData({
  * @param formData - Form data from submission
  * @returns Form state with success/error information
  */
-export async function updateProfile(
-  prevState: UpdateProfileState | null,
-  formData: FormData
-): Promise<UpdateProfileState> {
+export const updateProfile = withAuth(async (user, prevState: UpdateProfileState | null, formData: FormData): Promise<UpdateProfileState> => {
   try {
     // Validate form data
     const validatedData = profileFormSchema.parse(formData);
     
-    // Get authenticated user
-    const result = await withAuth(async (user) => {
-      const userId = user.id;
-      const db = getDatabaseClient();
-      
-      // Get existing user document
-      const existingDocument = await db.users.getUserProfile(userId);
-      
-      // Create updated document with ONLY profile data (6-container architecture)
-      const updatedDocument = {
-        id: userId,
-        userId: userId,
-        // Basic profile fields
-        name: validatedData.displayName || validatedData.name || existingDocument?.name || 'Unknown User',
-        displayName: validatedData.displayName || validatedData.name || existingDocument?.displayName,
-        firstName: validatedData.displayName?.split(' ')[0] || existingDocument?.firstName,
-        lastName: validatedData.displayName?.split(' ').slice(1).join(' ') || existingDocument?.lastName,
-        email: validatedData.email || existingDocument?.email || '',
-        region: validatedData.region || existingDocument?.region,
-        photoUrl: existingDocument?.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(validatedData.displayName || validatedData.name || 'User')}&background=6366f1&color=fff&size=100`,
-        // Additional profile fields
-        title: validatedData.title || existingDocument?.title || '',
-        department: validatedData.department || existingDocument?.department || '',
-        officeLocation: validatedData.office || existingDocument?.officeLocation,
-        // SECURITY: Never trust client-supplied roles
-        isCoach: existingDocument?.isCoach ?? false,
-        isActive: existingDocument?.isActive !== false,
-        teamId: existingDocument?.teamId,
-        onboardingComplete: existingDocument?.onboardingComplete ?? false,
-        lastLogin: existingDocument?.lastLogin,
-        createdAt: existingDocument?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      await db.users.upsertUserProfile(userId, updatedDocument);
-      
-      return createActionSuccess({ id: userId });
-    })({});
+    const userId = user.id;
+    const db = getDatabaseClient();
     
-    if (result.failed) {
-      return {
-        success: false,
-        errors: {
-          _form: result.errors._errors || ['Failed to update profile'],
-        },
-      };
-    }
+    // Get existing user document
+    const existingDocument = await db.users.getUserProfile(userId);
+    
+    // Create updated document with ONLY profile data (6-container architecture)
+    const updatedDocument = {
+      id: userId,
+      userId: userId,
+      // Basic profile fields
+      name: validatedData.displayName || validatedData.name || existingDocument?.name || 'Unknown User',
+      displayName: validatedData.displayName || validatedData.name || existingDocument?.displayName,
+      firstName: validatedData.displayName?.split(' ')[0] || existingDocument?.firstName,
+      lastName: validatedData.displayName?.split(' ').slice(1).join(' ') || existingDocument?.lastName,
+      email: validatedData.email || existingDocument?.email || '',
+      region: validatedData.region || existingDocument?.region,
+      photoUrl: existingDocument?.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(validatedData.displayName || validatedData.name || 'User')}&background=6366f1&color=fff&size=100`,
+      // Additional profile fields
+      title: validatedData.title || existingDocument?.title || '',
+      department: validatedData.department || existingDocument?.department || '',
+      officeLocation: validatedData.office || existingDocument?.officeLocation,
+      // SECURITY: Never trust client-supplied roles
+      isCoach: existingDocument?.isCoach ?? false,
+      isActive: existingDocument?.isActive !== false,
+      teamId: existingDocument?.teamId,
+      onboardingComplete: existingDocument?.onboardingComplete ?? false,
+      lastLogin: existingDocument?.lastLogin,
+      createdAt: existingDocument?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    await db.users.upsertUserProfile(userId, updatedDocument);
     
     // Revalidate to refresh context data
     revalidatePath('/people');
@@ -105,7 +88,7 @@ export async function updateProfile(
     
     return {
       success: true,
-      data: { id: result.id },
+      data: { id: userId },
     };
   } catch (error) {
     console.error('Failed to update profile:', error);
@@ -128,4 +111,4 @@ export async function updateProfile(
       },
     };
   }
-}
+});

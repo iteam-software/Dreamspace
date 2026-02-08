@@ -41,80 +41,63 @@ const scoreFormSchema = zfd.formData({
  * @param formData - Form data from submission
  * @returns Form state with success/error information
  */
-export async function saveScore(
-  prevState: SaveScoreState | null,
-  formData: FormData
-): Promise<SaveScoreState> {
+export const saveScore = withAuth(async (user, prevState: SaveScoreState | null, formData: FormData): Promise<SaveScoreState> => {
   try {
     // Validate form data
     const validatedData = scoreFormSchema.parse(formData);
     
-    // Get authenticated user
-    const result = await withAuth(async (user) => {
-      const userId = user.id;
-      const db = getDatabaseClient();
-      
-      // Get existing scoring document for the year
-      const documentId = `${userId}_${validatedData.year}_scoring`;
-      let scoringDoc;
-      try {
-        scoringDoc = await db.scoring.getScoringDocument(userId, validatedData.year);
-      } catch (error: any) {
-        if (error.code !== 404) {
-          throw error;
-        }
-        // Document doesn't exist yet, will create new one
-      }
-      
-      const existingQuarters = scoringDoc?.quarters || [];
-      const quarterIndex = existingQuarters.findIndex((q: QuarterScore) => q.quarter === validatedData.quarter);
-      
-      const quarterData: QuarterScore = {
-        quarter: validatedData.quarter,
-        score: validatedData.score,
-        notes: validatedData.notes,
-        scoredAt: new Date().toISOString(),
-      };
-      
-      // Update quarters array
-      let updatedQuarters: QuarterScore[];
-      if (quarterIndex >= 0) {
-        updatedQuarters = [...existingQuarters];
-        updatedQuarters[quarterIndex] = quarterData;
-      } else {
-        updatedQuarters = [...existingQuarters, quarterData];
-      }
-      
-      // Calculate annual score (average of quarters)
-      const scores = updatedQuarters.filter(q => q.score !== undefined).map(q => q.score!);
-      const annualScore = scores.length > 0
-        ? scores.reduce((sum, s) => sum + s, 0) / scores.length
-        : undefined;
-      
-      // Save to database - match ScoringDocument structure
-      const document = {
-        id: documentId,
-        userId: userId,
-        year: validatedData.year,
-        quarters: updatedQuarters,
-        annualScore,
-        createdAt: scoringDoc?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      await db.scoring.upsertScoring(userId, validatedData.year, document);
-      
-      return createActionSuccess({ id: documentId, quarter: validatedData.quarter });
-    })({});
+    const userId = user.id;
+    const db = getDatabaseClient();
     
-    if (result.failed) {
-      return {
-        success: false,
-        errors: {
-          _form: result.errors._errors || ['Failed to save score'],
-        },
-      };
+    // Get existing scoring document for the year
+    const documentId = `${userId}_${validatedData.year}_scoring`;
+    let scoringDoc;
+    try {
+      scoringDoc = await db.scoring.getScoringDocument(userId, validatedData.year);
+    } catch (error: any) {
+      if (error.code !== 404) {
+        throw error;
+      }
+      // Document doesn't exist yet, will create new one
     }
+    
+    const existingQuarters = scoringDoc?.quarters || [];
+    const quarterIndex = existingQuarters.findIndex((q: QuarterScore) => q.quarter === validatedData.quarter);
+    
+    const quarterData: QuarterScore = {
+      quarter: validatedData.quarter,
+      score: validatedData.score,
+      notes: validatedData.notes,
+      scoredAt: new Date().toISOString(),
+    };
+    
+    // Update quarters array
+    let updatedQuarters: QuarterScore[];
+    if (quarterIndex >= 0) {
+      updatedQuarters = [...existingQuarters];
+      updatedQuarters[quarterIndex] = quarterData;
+    } else {
+      updatedQuarters = [...existingQuarters, quarterData];
+    }
+    
+    // Calculate annual score (average of quarters)
+    const scores = updatedQuarters.filter(q => q.score !== undefined).map(q => q.score!);
+    const annualScore = scores.length > 0
+      ? scores.reduce((sum, s) => sum + s, 0) / scores.length
+      : undefined;
+    
+    // Save to database - match ScoringDocument structure
+    const document = {
+      id: documentId,
+      userId: userId,
+      year: validatedData.year,
+      quarters: updatedQuarters,
+      annualScore,
+      createdAt: scoringDoc?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    await db.scoring.upsertScoring(userId, validatedData.year, document);
     
     // Revalidate to refresh context data
     revalidatePath('/scorecard');
@@ -122,7 +105,7 @@ export async function saveScore(
     
     return {
       success: true,
-      data: { id: result.id, quarter: result.quarter },
+      data: { id: documentId, quarter: validatedData.quarter },
     };
   } catch (error) {
     console.error('Failed to save score:', error);
@@ -145,4 +128,4 @@ export async function saveScore(
       },
     };
   }
-}
+});

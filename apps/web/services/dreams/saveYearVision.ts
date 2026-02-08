@@ -35,46 +35,29 @@ const yearVisionFormSchema = zfd.formData({
  * @param formData - Form data from submission
  * @returns Form state with success/error information
  */
-export async function saveYearVision(
-  prevState: SaveYearVisionState | null,
-  formData: FormData
-): Promise<SaveYearVisionState> {
+export const saveYearVision = withAuth(async (user, prevState: SaveYearVisionState | null, formData: FormData): Promise<SaveYearVisionState> => {
   try {
     // Validate form data
     const validatedData = yearVisionFormSchema.parse(formData);
     
-    // Get authenticated user
-    const result = await withAuth(async (user) => {
-      const userId = user.id;
-      const db = getDatabaseClient();
-      
-      // Get existing document
-      const dreamsDoc = await db.dreams.getDreamsDocument(userId);
-      
-      // Update document with new vision
-      const document = {
-        id: userId,
-        userId: userId,
-        dreams: dreamsDoc?.dreams || [],
-        weeklyGoalTemplates: dreamsDoc?.weeklyGoalTemplates || [],
-        yearVision: validatedData.yearVision,
-        createdAt: dreamsDoc?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      await db.dreams.upsertDreamsDocument(userId, document);
-      
-      return { success: true, yearVision: validatedData.yearVision };
-    })({});
+    const userId = user.id;
+    const db = getDatabaseClient();
     
-    if (result.failed) {
-      return {
-        success: false,
-        errors: {
-          _form: result.errors._errors || ['Failed to save year vision'],
-        },
-      };
-    }
+    // Get existing document
+    const dreamsDoc = await db.dreams.getDreamsDocument(userId);
+    
+    // Update document with new vision
+    const document = {
+      id: userId,
+      userId: userId,
+      dreams: dreamsDoc?.dreams || [],
+      weeklyGoalTemplates: dreamsDoc?.weeklyGoalTemplates || [],
+      yearVision: validatedData.yearVision,
+      createdAt: dreamsDoc?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    await db.dreams.upsertDreamsDocument(userId, document);
     
     // Revalidate to refresh context data
     revalidatePath('/dream-book');
@@ -82,7 +65,7 @@ export async function saveYearVision(
     
     return {
       success: true,
-      data: { yearVision: result.yearVision },
+      data: { yearVision: validatedData.yearVision },
     };
   } catch (error) {
     console.error('Failed to save year vision:', error);
@@ -104,5 +87,5 @@ export async function saveYearVision(
       },
     };
   }
-}
+});
 

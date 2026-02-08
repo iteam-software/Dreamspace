@@ -38,53 +38,33 @@ const teamNameFormSchema = zfd.formData({
  * @param formData - Form data from submission
  * @returns Form state with success/error information
  */
-export async function updateTeamName(
-  prevState: UpdateTeamNameState | null,
-  formData: FormData
-): Promise<UpdateTeamNameState> {
+export const updateTeamName = withCoachAuth(async (user, prevState: UpdateTeamNameState | null, formData: FormData): Promise<UpdateTeamNameState> => {
   try {
     // Validate form data
     const validatedData = teamNameFormSchema.parse(formData);
     
-    // Get authenticated coach
-    const result = await withCoachAuth(async (user) => {
-      const { managerId, teamName } = validatedData;
-      
-      // Verify the authenticated coach is modifying their own team
-      if (user.id !== managerId) {
-        throw new Error('You can only modify your own team');
-      }
-      
-      const db = getDatabaseClient();
-      
-      const team = await db.teams.getTeamByManagerId(managerId);
-      
-      if (!team) {
-        throw new Error(`No team found for manager: ${managerId}`);
-      }
-      
-      const updatedTeam = {
-        ...team,
-        teamName,
-        updatedAt: new Date().toISOString(),
-      };
-      
-      await db.teams.updateTeam(team.id, team.managerId, updatedTeam);
-      
-      return createActionSuccess({
-        managerId,
-        teamName,
-      });
-    })({});
+    const { managerId, teamName } = validatedData;
     
-    if (result.failed) {
-      return {
-        success: false,
-        errors: {
-          _form: result.errors._errors || ['Failed to update team name'],
-        },
-      };
+    // Verify the authenticated coach is modifying their own team
+    if (user.id !== managerId) {
+      throw new Error('You can only modify your own team');
     }
+    
+    const db = getDatabaseClient();
+    
+    const team = await db.teams.getTeamByManagerId(managerId);
+    
+    if (!team) {
+      throw new Error(`No team found for manager: ${managerId}`);
+    }
+    
+    const updatedTeam = {
+      ...team,
+      teamName,
+      updatedAt: new Date().toISOString(),
+    };
+    
+    await db.teams.updateTeam(team.id, team.managerId, updatedTeam);
     
     // Revalidate to refresh context data
     revalidatePath('/dream-team');
@@ -92,7 +72,7 @@ export async function updateTeamName(
     
     return {
       success: true,
-      data: { managerId: result.managerId, teamName: result.teamName },
+      data: { managerId, teamName },
     };
   } catch (error) {
     console.error('Failed to update team name:', error);
@@ -114,4 +94,4 @@ export async function updateTeamName(
       },
     };
   }
-}
+});

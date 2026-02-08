@@ -43,49 +43,32 @@ const connectFormSchema = zfd.formData({
  * @param formData - Form data from submission
  * @returns Form state with success/error information
  */
-export async function saveConnect(
-  prevState: SaveConnectState | null,
-  formData: FormData
-): Promise<SaveConnectState> {
+export const saveConnect = withAuth(async (user, prevState: SaveConnectState | null, formData: FormData): Promise<SaveConnectState> => {
   try {
     // Validate form data
     const validatedData = connectFormSchema.parse(formData);
     
-    // Get authenticated user
-    const result = await withAuth(async (user) => {
-      const userId = user.id;
-      const db = getDatabaseClient();
-      
-      // Create connect ID
-      const connectId = validatedData.id || `connect_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      
-      // Save to database - match ConnectDocument structure
-      const document = {
-        id: connectId,
-        userId: userId,
-        connectType: validatedData.connectType,
-        connectDate: validatedData.connectDate,
-        notes: validatedData.notes,
-        recipientUserId: validatedData.recipientUserId,
-        recipientName: validatedData.recipientName,
-        teamId: validatedData.teamId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      await db.connects.upsertConnect(userId, document);
-      
-      return createActionSuccess({ id: connectId });
-    })({});
+    const userId = user.id;
+    const db = getDatabaseClient();
     
-    if (result.failed) {
-      return {
-        success: false,
-        errors: {
-          _form: result.errors._errors || ['Failed to save connect'],
-        },
-      };
-    }
+    // Create connect ID
+    const connectId = validatedData.id || `connect_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    
+    // Save to database - match ConnectDocument structure
+    const document = {
+      id: connectId,
+      userId: userId,
+      connectType: validatedData.connectType,
+      connectDate: validatedData.connectDate,
+      notes: validatedData.notes,
+      recipientUserId: validatedData.recipientUserId,
+      recipientName: validatedData.recipientName,
+      teamId: validatedData.teamId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    await db.connects.upsertConnect(userId, document);
     
     // Revalidate to refresh context data
     revalidatePath('/dream-connect');
@@ -93,7 +76,7 @@ export async function saveConnect(
     
     return {
       success: true,
-      data: { id: result.id },
+      data: { id: connectId },
     };
   } catch (error) {
     console.error('Failed to save connect:', error);
@@ -117,4 +100,4 @@ export async function saveConnect(
       },
     };
   }
-}
+});

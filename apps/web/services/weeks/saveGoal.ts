@@ -47,83 +47,66 @@ const goalFormSchema = zfd.formData({
  * @param formData - Form data from submission
  * @returns Form state with success/error information
  */
-export async function saveGoal(
-  prevState: SaveGoalState | null,
-  formData: FormData
-): Promise<SaveGoalState> {
+export const saveGoal = withAuth(async (user, prevState: SaveGoalState | null, formData: FormData): Promise<SaveGoalState> => {
   try {
     // Validate form data
     const validatedData = goalFormSchema.parse(formData);
     
-    // Get authenticated user
-    const result = await withAuth(async (user) => {
-      const userId = user.id;
-      const db = getDatabaseClient();
-      
-      // Get current week document
-      const weekDoc = await db.weeks.getCurrentWeek(userId);
-      const existingGoals = weekDoc?.goals || [];
-      
-      // Create or update goal
-      const goalId = validatedData.id || `goal_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const goalIndex = existingGoals.findIndex((g: WeekGoal) => g.id === goalId);
-      
-      const goalData: WeekGoal = {
-        id: goalId,
-        title: validatedData.title,
-        category: validatedData.category,
-        description: validatedData.description,
-        templateId: validatedData.templateId,
-        goalType: validatedData.goalType,
-        targetValue: validatedData.targetValue,
-        currentValue: validatedData.currentValue ?? 0,
-        unit: validatedData.unit,
-        isCompleted: goalIndex >= 0 ? existingGoals[goalIndex].isCompleted : false,
-        completedAt: goalIndex >= 0 ? existingGoals[goalIndex].completedAt : undefined,
-        notes: goalIndex >= 0 ? existingGoals[goalIndex].notes : undefined,
-        dailyProgress: goalIndex >= 0 ? existingGoals[goalIndex].dailyProgress : [],
-      };
-      
-      // Update goals array
-      let updatedGoals: WeekGoal[];
-      if (goalIndex >= 0) {
-        updatedGoals = [...existingGoals];
-        updatedGoals[goalIndex] = goalData;
-      } else {
-        updatedGoals = [...existingGoals, goalData];
-      }
-      
-      // Calculate week number and year from weekStartDate
-      const weekStart = new Date(validatedData.weekStartDate);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      
-      // Save to database - match CurrentWeekDocument structure
-      const document = {
-        id: userId,
-        userId: userId,
-        weekStartDate: validatedData.weekStartDate,
-        weekEndDate: weekEnd.toISOString().split('T')[0],
-        goals: updatedGoals,
-        weekNumber: getWeekNumber(weekStart),
-        year: weekStart.getFullYear(),
-        createdAt: weekDoc?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      await db.weeks.upsertCurrentWeek(userId, document);
-      
-      return createActionSuccess({ id: goalId });
-    })({});
+    const userId = user.id;
+    const db = getDatabaseClient();
     
-    if (result.failed) {
-      return {
-        success: false,
-        errors: {
-          _form: result.errors._errors || ['Failed to save goal'],
-        },
-      };
+    // Get current week document
+    const weekDoc = await db.weeks.getCurrentWeek(userId);
+    const existingGoals = weekDoc?.goals || [];
+    
+    // Create or update goal
+    const goalId = validatedData.id || `goal_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const goalIndex = existingGoals.findIndex((g: WeekGoal) => g.id === goalId);
+    
+    const goalData: WeekGoal = {
+      id: goalId,
+      title: validatedData.title,
+      category: validatedData.category,
+      description: validatedData.description,
+      templateId: validatedData.templateId,
+      goalType: validatedData.goalType,
+      targetValue: validatedData.targetValue,
+      currentValue: validatedData.currentValue ?? 0,
+      unit: validatedData.unit,
+      isCompleted: goalIndex >= 0 ? existingGoals[goalIndex].isCompleted : false,
+      completedAt: goalIndex >= 0 ? existingGoals[goalIndex].completedAt : undefined,
+      notes: goalIndex >= 0 ? existingGoals[goalIndex].notes : undefined,
+      dailyProgress: goalIndex >= 0 ? existingGoals[goalIndex].dailyProgress : [],
+    };
+    
+    // Update goals array
+    let updatedGoals: WeekGoal[];
+    if (goalIndex >= 0) {
+      updatedGoals = [...existingGoals];
+      updatedGoals[goalIndex] = goalData;
+    } else {
+      updatedGoals = [...existingGoals, goalData];
     }
+    
+    // Calculate week number and year from weekStartDate
+    const weekStart = new Date(validatedData.weekStartDate);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    
+    // Save to database - match CurrentWeekDocument structure
+    const document = {
+      id: userId,
+      userId: userId,
+      weekStartDate: validatedData.weekStartDate,
+      weekEndDate: weekEnd.toISOString().split('T')[0],
+      goals: updatedGoals,
+      weekNumber: getWeekNumber(weekStart),
+      year: weekStart.getFullYear(),
+      createdAt: weekDoc?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    await db.weeks.upsertCurrentWeek(userId, document);
     
     // Revalidate to refresh context data
     revalidatePath('/dashboard');
@@ -131,7 +114,7 @@ export async function saveGoal(
     
     return {
       success: true,
-      data: { id: result.id },
+      data: { id: goalId },
     };
   } catch (error) {
     console.error('Failed to save goal:', error);
@@ -155,7 +138,7 @@ export async function saveGoal(
       },
     };
   }
-}
+});
 
 /**
  * Get ISO week number
